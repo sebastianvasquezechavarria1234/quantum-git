@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useMemo, useRef, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, PerspectiveCamera, Environment } from '@react-three/drei'
+import { OrbitControls, PerspectiveCamera, Environment, Sparkles } from '@react-three/drei'
 import { EffectComposer, Bloom, ChromaticAberration } from '@react-three/postprocessing'
 import { BlendFunction } from 'postprocessing'
 import * as THREE from 'three'
@@ -113,6 +113,15 @@ function GalaxyInner({
       <EnergyRing position={selectedPosition} color={selectedColor} />
 
       <StarDust count={3000} />
+
+      <Sparkles
+        count={200}
+        scale={[30, 10, 30]}
+        size={0.15}
+        speed={0.3}
+        opacity={0.3}
+        color="#8b5cf6"
+      />
 
       <EffectComposer multisampling={0}>
         <Bloom
