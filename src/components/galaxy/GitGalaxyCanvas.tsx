@@ -2,13 +2,15 @@
 
 import { Suspense, useCallback, useMemo, useRef, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
+import { OrbitControls, PerspectiveCamera, Environment } from '@react-three/drei'
 import { EffectComposer, Bloom, ChromaticAberration } from '@react-three/postprocessing'
 import { BlendFunction } from 'postprocessing'
 import * as THREE from 'three'
 import CommitStar from './CommitStar'
 import NebulaBranches from './NebulaBranches'
 import StarDust from './StarDust'
+import NebulaSkybox from './NebulaSkybox'
+import EnergyRing from './EnergyRing'
 import { computeGalaxyLayout } from '@/lib/galaxy-coordinates'
 import { GalaxyData } from '@/lib/github'
 
@@ -36,12 +38,17 @@ function GalaxyInner({
 
   const selectedPosition = useMemo(() => {
     if (!selectedSha) return null
-    return layout.commits.find(c => c.sha === selectedSha)?.position ?? null
+    return layout.commits.find(c => c.sha === selectedSha) ?? null
   }, [selectedSha, layout.commits])
+
+  const selectedColor = useMemo(() => {
+    if (!selectedPosition) return '#8b5cf6'
+    return branchColorMap.get(selectedPosition.branch) ?? '#8b5cf6'
+  }, [selectedPosition, branchColorMap])
 
   useEffect(() => {
     if (!selectedPosition || !controlsRef.current) return
-    const pos = new THREE.Vector3(selectedPosition.x, selectedPosition.y, selectedPosition.z)
+    const pos = new THREE.Vector3(selectedPosition.position.x, selectedPosition.position.y, selectedPosition.position.z)
     const offset = new THREE.Vector3(3, 2, 5)
     controlsRef.current.object.position.lerp(pos.clone().add(offset), 0.1)
     controlsRef.current.target.lerp(pos, 0.1)
@@ -54,6 +61,8 @@ function GalaxyInner({
 
   return (
     <>
+      <color attach="background" args={['#0a0a0c']} />
+
       <PerspectiveCamera makeDefault position={[0, 0, 12]} fov={50} />
       <OrbitControls
         ref={controlsRef}
@@ -71,7 +80,21 @@ function GalaxyInner({
       <pointLight position={[-10, -5, -10]} intensity={0.4} color="#06b6d4" />
       <pointLight position={[0, 10, -10]} intensity={0.3} color="#ec4899" />
 
-      <fogExp2 attach="fog" args={['#0a0a0c', 0.008]} />
+      <spotLight
+        position={[0, 5, 0]}
+        angle={0.6}
+        penumbra={0.5}
+        intensity={1.5}
+        color="#8b5cf6"
+        distance={50}
+        castShadow={false}
+      />
+
+      <fogExp2 attach="fog" args={['#0a0a0c', 0.006]} />
+
+      <NebulaSkybox />
+
+      <Environment preset="night" environmentIntensity={0.6} />
 
       <NebulaBranches paths={layout.branchPaths} />
 
@@ -87,18 +110,20 @@ function GalaxyInner({
         />
       ))}
 
-      <StarDust count={2500} />
+      <EnergyRing position={selectedPosition} color={selectedColor} />
+
+      <StarDust count={3000} />
 
       <EffectComposer multisampling={0}>
         <Bloom
-          luminanceThreshold={0.1}
-          luminanceSmoothing={0.9}
-          intensity={0.6}
+          luminanceThreshold={0.05}
+          luminanceSmoothing={0.85}
+          intensity={0.8}
           mipmapBlur
         />
         <ChromaticAberration
           blendFunction={BlendFunction.NORMAL}
-          offset={[0.001, 0.0005]}
+          offset={[0.002, 0.001]}
         />
       </EffectComposer>
     </>
