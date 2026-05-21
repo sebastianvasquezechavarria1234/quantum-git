@@ -7,7 +7,7 @@ import TimelinePlayer from '@/components/ui/TimelinePlayer'
 import GitGalaxyCanvas from '@/components/galaxy/GitGalaxyCanvas'
 import HeroOverlay from '@/components/ui/HeroOverlay'
 import BranchLegend from '@/components/ui/BranchLegend'
-import { GalaxyData, getMockGalaxyData } from '@/lib/github'
+import { GalaxyData, getMockGalaxyData, fetchRepoData } from '@/lib/github'
 
 export default function Home() {
   const [data, setData] = useState<GalaxyData>(() => getMockGalaxyData())
@@ -27,21 +27,31 @@ export default function Home() {
 
   const showHero = !selectedSha && !isPlaying && !heroDismissed
 
-  const handleSearch = useCallback(async (url: string) => {
+  const [searchError, setSearchError] = useState<string | null>(null)
+
+  const handleSearch = useCallback(async (input: string) => {
     setIsLoading(true)
+    setSearchError(null)
     setHeroDismissed(false)
     try {
-      const match = url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\/|$)/)
-      if (match) {
-        const owner = match[1]
-        const repo = match[2]
-        const { fetchRepoData } = await import('@/lib/github')
-        const result = await fetchRepoData(owner, repo)
-        setData(result)
+      let owner: string, repo: string
+      const urlMatch = input.match(/github\.com\/([^/]+)\/([^/]+?)(?:\/|$)/)
+      const shortMatch = input.match(/^([\w.-]+)\/([\w.-]+)$/)
+      if (urlMatch) {
+        owner = urlMatch[1]
+        repo = urlMatch[2]
+      } else if (shortMatch) {
+        owner = shortMatch[1]
+        repo = shortMatch[2]
       } else {
         setData(getMockGalaxyData())
+        setIsLoading(false)
+        return
       }
-    } catch {
+      const result = await fetchRepoData(owner, repo)
+      setData(result)
+    } catch (err) {
+      setSearchError(err instanceof Error ? err.message : 'Failed to load repository')
       setData(getMockGalaxyData())
     }
     setIsLoading(false)
@@ -108,7 +118,7 @@ export default function Home() {
 
   return (
     <>
-      <Header onSearch={handleSearch} isLoading={isLoading} />
+      <Header onSearch={handleSearch} isLoading={isLoading} error={searchError} />
 
       <GitGalaxyCanvas
         data={data}

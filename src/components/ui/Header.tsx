@@ -7,9 +7,10 @@ import { motion } from 'framer-motion'
 interface HeaderProps {
   onSearch: (url: string) => void
   isLoading: boolean
+  error?: string | null
 }
 
-export default function Header({ onSearch, isLoading }: HeaderProps) {
+export default function Header({ onSearch, isLoading, error }: HeaderProps) {
   const [input, setInput] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -17,6 +18,10 @@ export default function Header({ onSearch, isLoading }: HeaderProps) {
     if (input.trim()) {
       onSearch(input.trim())
     }
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value)
   }
 
   return (
@@ -44,8 +49,8 @@ export default function Header({ onSearch, isLoading }: HeaderProps) {
               <input
                 type="text"
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="https://github.com/owner/repo"
+                onChange={handleChange}
+                placeholder="owner/repo or https://github.com/owner/repo"
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-violet-500/50 focus:bg-white/10 transition-all font-mono"
               />
             </div>
@@ -64,6 +69,14 @@ export default function Header({ onSearch, isLoading }: HeaderProps) {
               )}
             </button>
           </form>
+
+          {error && (
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1">
+              <div className="glass-panel rounded-lg px-3 py-1.5 text-xs text-red-400 font-mono whitespace-nowrap">
+                {error}
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 text-xs text-zinc-500 shrink-0">
             <button className="hover:text-white transition-colors">Demo</button>

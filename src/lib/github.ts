@@ -330,11 +330,14 @@ export async function fetchRepoData(owner: string, repo: string): Promise<Galaxy
   const [repoRes, branchesRes, commitsRes] = await Promise.all([
     fetch(base, { headers }),
     fetch(`${base}/branches`, { headers }),
-    fetch(`${base}/commits?per_page=100`, { headers }),
+    fetch(`${base}/commits?per_page=50`, { headers }),
   ])
 
   if (!repoRes.ok || !branchesRes.ok || !commitsRes.ok) {
-    throw new Error('Failed to fetch repository data')
+    const status = repoRes.status || branchesRes.status || commitsRes.status
+    if (status === 403) throw new Error('GitHub API rate limit exceeded. Use Demo mode or add a token.')
+    if (status === 404) throw new Error(`Repository "${owner}/${repo}" not found.`)
+    throw new Error(`Failed to fetch repository data (${status})`)
   }
 
   const repoData = (await repoRes.json()) as GHRepo
@@ -348,17 +351,25 @@ export async function fetchRepoData(owner: string, repo: string): Promise<Galaxy
   }))
 
   const commits: CommitNode[] = await Promise.all(
-    commitsData.map(async (c) => {
-      const commitRes = await fetch(c.url, { headers })
-      const detail = (await commitRes.json()) as GHCommitDetail
-
-      const files: CommitFile[] = (detail.files ?? []).map((f) => ({
-        filename: f.filename,
-        status: f.status as CommitFile['status'],
-        additions: f.additions,
-        deletions: f.deletions,
-        patch: f.patch,
-      }))
+    commitsData.slice(0, 20).map(async (c) => {
+      let files: CommitFile[] = []
+      let additions = 0
+      let deletions = 0
+      try {
+        const commitRes = await fetch(c.url, { headers })
+        if (commitRes.ok) {
+          const detail = (await commitRes.json()) as GHCommitDetail
+          files = (detail.files ?? []).map((f) => ({
+            filename: f.filename,
+            status: f.status as CommitFile['status'],
+            additions: f.additions,
+            deletions: f.deletions,
+            patch: f.patch,
+          }))
+          additions = files.reduce((a, f) => a + f.additions, 0)
+          deletions = files.reduce((a, f) => a + f.deletions, 0)
+        }
+      } catch {}
 
       return {
         sha: c.sha,
@@ -373,11 +384,29 @@ export async function fetchRepoData(owner: string, repo: string): Promise<Galaxy
         branch: '',
         parents: c.parents?.map((p) => p.sha) ?? [],
         files,
-        additions: files.reduce((a, f) => a + f.additions, 0),
-        deletions: files.reduce((a, f) => a + f.deletions, 0),
+        additions,
+        deletions,
       }
     })
   )
+
+  const remainingCommits = commitsData.slice(20).map((c) => ({
+    sha: c.sha,
+    author: {
+      name: c.commit.author?.name ?? 'Unknown',
+      email: c.commit.author?.email ?? '',
+      avatar: c.author?.avatar_url ?? '',
+      login: c.author?.login ?? '',
+    },
+    date: new Date(c.commit.author?.date ?? Date.now()),
+    message: c.commit.message,
+    branch: '',
+    parents: c.parents?.map((p) => p.sha) ?? [],
+    files: [] as CommitFile[],
+    additions: 0,
+    deletions: 0,
+  }))
+  commits.push(...remainingCommits)
 
   commits.forEach((commit) => {
     for (const branch of branches) {
