@@ -1,16 +1,10 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-plus-jakarta",
-  display: "swap",
-});
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
+  variable: "--font-jetbrains",
   display: "swap",
 });
 
@@ -32,10 +26,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${plusJakartaSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
-    >
+    <html lang="en" className={`${jetbrainsMono.variable} h-full antialiased`}>
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&display=swap"
+        />
+      </head>
       <body className="min-h-full bg-[#0a0a0c] text-[#ededed] font-sans">
         {children}
       </body>
