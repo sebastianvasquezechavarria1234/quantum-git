@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
@@ -31,35 +31,62 @@ function generateSizes(count: number): Float32Array {
 
 export default function StarDust({ count = 2000 }: { count?: number }) {
   const ref = useRef<THREE.Points>(null)
+  const mouseRef = useRef({ x: 0, y: 0 })
 
-  const { positions, velocities, sizes } = useMemo(() => {
+  const particles = useMemo(() => {
     const { pos, vel } = generateParticles(count)
-    const s = generateSizes(count)
-    return { positions: pos, velocities: vel, sizes: s }
+    return { positions: pos, velocities: vel, basePositions: new Float32Array(pos), sizes: generateSizes(count) }
   }, [count])
 
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1))
+    geo.setAttribute('position', new THREE.BufferAttribute(particles.positions, 3))
+    geo.setAttribute('size', new THREE.BufferAttribute(particles.sizes, 1))
     return geo
-  }, [positions, sizes])
+  }, [particles.positions, particles.sizes])
 
-  const velocitiesRef = useRef(velocities)
+  useEffect(() => {
+    const handleMouse = (e: MouseEvent) => {
+      mouseRef.current.x = (e.clientX / window.innerWidth - 0.5) * 2
+      mouseRef.current.y = (e.clientY / window.innerHeight - 0.5) * 2
+    }
+    window.addEventListener('mousemove', handleMouse)
+    return () => window.removeEventListener('mousemove', handleMouse)
+  }, [])
 
   useFrame((_state, delta) => {
     if (!ref.current) return
     const posAttr = ref.current.geometry.getAttribute('position')
     const array = posAttr.array as Float32Array
+    const base = particles.basePositions
+    const vel = particles.velocities
+
+    const mx = mouseRef.current.x * 2
+    const my = mouseRef.current.y * 1.5
 
     for (let i = 0; i < count; i++) {
-      array[i * 3] += velocitiesRef.current[i * 3] * delta * 60
-      array[i * 3 + 1] += velocitiesRef.current[i * 3 + 1] * delta * 60
-      array[i * 3 + 2] += velocitiesRef.current[i * 3 + 2] * delta * 60
+      const ix = i * 3
+      const iy = i * 3 + 1
+      const iz = i * 3 + 2
 
-      if (Math.abs(array[i * 3]) > 50) velocitiesRef.current[i * 3] *= -1
-      if (Math.abs(array[i * 3 + 1]) > 25) velocitiesRef.current[i * 3 + 1] *= -1
-      if (Math.abs(array[i * 3 + 2]) > 50) velocitiesRef.current[i * 3 + 2] *= -1
+      array[ix] += vel[ix] * delta * 60
+      array[iy] += vel[iy] * delta * 60
+      array[iz] += vel[iz] * delta * 60
+
+      const dx = array[ix] - base[ix]
+      const dy = array[iy] - base[iy]
+      const dz = array[iz] - base[iz]
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+
+      if (dist > 2) {
+        array[ix] -= dx * 0.001
+        array[iy] -= dy * 0.001
+        array[iz] -= dz * 0.001
+      }
+
+      const influence = 0.005 / (1 + dist * 0.3)
+      array[ix] += mx * influence
+      array[iy] += my * influence
     }
     posAttr.needsUpdate = true
   })

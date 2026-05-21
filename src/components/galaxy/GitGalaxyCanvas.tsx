@@ -3,6 +3,8 @@
 import { Suspense, useCallback, useMemo, useRef, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
+import { EffectComposer, Bloom, ChromaticAberration } from '@react-three/postprocessing'
+import { BlendFunction } from 'postprocessing'
 import * as THREE from 'three'
 import CommitStar from './CommitStar'
 import NebulaBranches from './NebulaBranches'
@@ -86,6 +88,19 @@ function GalaxyInner({
       ))}
 
       <StarDust count={2500} />
+
+      <EffectComposer multisampling={0}>
+        <Bloom
+          luminanceThreshold={0.1}
+          luminanceSmoothing={0.9}
+          intensity={0.6}
+          mipmapBlur
+        />
+        <ChromaticAberration
+          blendFunction={BlendFunction.NORMAL}
+          offset={[0.001, 0.0005]}
+        />
+      </EffectComposer>
     </>
   )
 }

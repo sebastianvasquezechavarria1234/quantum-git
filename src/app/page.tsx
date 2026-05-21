@@ -5,6 +5,8 @@ import Header from '@/components/ui/Header'
 import TelemetryPanel from '@/components/ui/TelemetryPanel'
 import TimelinePlayer from '@/components/ui/TimelinePlayer'
 import GitGalaxyCanvas from '@/components/galaxy/GitGalaxyCanvas'
+import HeroOverlay from '@/components/ui/HeroOverlay'
+import BranchLegend from '@/components/ui/BranchLegend'
 import { GalaxyData, getMockGalaxyData } from '@/lib/github'
 
 export default function Home() {
@@ -13,17 +15,21 @@ export default function Home() {
   const [selectedSha, setSelectedSha] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [playProgress, setPlayProgress] = useState(1)
+  const [heroDismissed, setHeroDismissed] = useState(false)
   const animFrameRef = useRef<number | null>(null)
   const playStartRef = useRef<number>(0)
   const progressAtStartRef = useRef<number>(0)
 
   const selectedCommit = useMemo(() => {
-    if (!selectedSha || !data) return null
+    if (!selectedSha) return null
     return data.commits.find(c => c.sha === selectedSha) ?? null
   }, [selectedSha, data])
 
+  const showHero = !selectedSha && !isPlaying && !heroDismissed
+
   const handleSearch = useCallback(async (url: string) => {
     setIsLoading(true)
+    setHeroDismissed(false)
     try {
       const match = url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\/|$)/)
       if (match) {
@@ -43,6 +49,7 @@ export default function Home() {
 
   const handleSelectCommit = useCallback((sha: string) => {
     setSelectedSha(prev => prev === sha ? null : sha)
+    setHeroDismissed(true)
   }, [])
 
   const handleCloseTelemetry = useCallback(() => {
@@ -51,6 +58,7 @@ export default function Home() {
 
   const handlePlay = useCallback(() => {
     setIsPlaying(true)
+    setHeroDismissed(true)
     playStartRef.current = Date.now()
     progressAtStartRef.current = playProgress
   }, [playProgress])
@@ -73,7 +81,7 @@ export default function Home() {
       return
     }
 
-    const totalDuration = (data?.commits.length ?? 1) * 250
+    const totalDuration = data.commits.length * 250
 
     const animate = () => {
       const elapsed = Date.now() - playStartRef.current
@@ -91,7 +99,7 @@ export default function Home() {
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
     }
-  }, [isPlaying, data?.commits.length])
+  }, [isPlaying, data.commits.length])
 
   const currentTimelineCommit = useMemo(() => {
     const idx = Math.floor(playProgress * data.commits.length)
@@ -107,6 +115,17 @@ export default function Home() {
         selectedSha={selectedSha}
         onSelectCommit={handleSelectCommit}
         isPlaying={isPlaying}
+      />
+
+      <HeroOverlay
+        data={data}
+        visible={showHero}
+        onExplore={() => setHeroDismissed(true)}
+      />
+
+      <BranchLegend
+        branches={data.branches}
+        visible={!showHero}
       />
 
       <TelemetryPanel
